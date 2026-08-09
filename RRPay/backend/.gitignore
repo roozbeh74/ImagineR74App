@@ -1,0 +1,45 @@
+# .gitignore for RRPay Backend
+
+# Dependencies
+node_modules/
+package-lock.json
+
+# Environment variables
+.env
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
+tmp/
+temp/
+.cache/
+
+# Test coverage
+coverage/
+
+# Build output
+dist/
+build/
+
+# MongoDB data (if using local)
+data/
+*.bson
+
+# Crypto keys (NEVER commit these!)
+*.pem
+*.key
+wallet.dat
