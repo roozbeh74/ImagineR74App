@@ -98,8 +98,10 @@ RRPay/
 │   │   ├── authRoutes.js        # مسیرهای احراز هویت
 │   │   ├── faucetRoutes.js      # مسیرهای فاست
 │   │   └── withdrawalRoutes.js  # مسیرهای برداشت
+│   ├── scripts/
+│   │   └── seed.js              # اسکریپت مقداردهی اولیه دیتابیس
 │   ├── services/
-│   │   └── blockchainService.js # سرویس بلاکچین
+│   │   └── blockchainService.js # سرویس یکپارچگی بلاکچین
 │   ├── utils/
 │   │   └── logger.js            # تنظیمات لاگ
 │   ├── logs/                    # فایل‌های لاگ
@@ -110,7 +112,12 @@ RRPay/
 │   ├── index.html               # صفحه اصلی
 │   ├── style.css                # استایل‌ها
 │   └── app.js                   # منطق جاوااسکریپت
-└── README.md                    # همین فایل
+├── public/
+│   ├── css/                     # CSS عمومی
+│   └── js/                      # JS عمومی
+├── .env.example                 # نمونه تنظیمات محیطی
+├── package.json                 # وابستگی‌های پروژه
+└── README.md                    # مستندات پروژه
 ```
 
 ---
@@ -174,12 +181,29 @@ npm install
 ### 3. تنظیم فایل محیطی
 
 ```bash
+cd backend
 cp .env.example .env
 ```
 
 سپس فایل `.env` را با مقادیر مناسب ویرایش کنید.
 
-### 4. اجرای MongoDB
+**تنظیمات مهم:**
+- `MONGODB_URI`: آدرس اتصال به MongoDB
+- `JWT_SECRET`: کلید محرمانه برای JWT (حتما تغییر دهید)
+- `BLOCKCYPHER_API_KEY`: کلید API بلاکچین بیت‌کوین
+- `ETHERSCAN_API_KEY`: کلید API اتریوم
+- آدرس کیف پول‌های خود را وارد کنید
+
+### 4. مقداردهی اولیه دیتابیس
+
+```bash
+# اجرای اسکریپت seed برای ایجاد تنظیمات فاست
+npm run seed
+```
+
+این دستور تنظیمات اولیه فاست برای BTC، ETH، USDT و DOGE را در دیتابیس ایجاد می‌کند.
+
+### 5. اجرای MongoDB
 
 ```bash
 # اگر MongoDB را محلی نصب کرده‌اید
@@ -300,6 +324,23 @@ Content-Type: application/json
 }
 ```
 
+**پاسخ موفقیت‌آمیز:**
+```json
+{
+  "success": true,
+  "message": "Registration successful",
+  "data": {
+    "user": {
+      "id": "64f8a1b2c3d4e5f6g7h8i9j0",
+      "username": "user123",
+      "email": "user@example.com",
+      "role": "user"
+    },
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  }
+}
+```
+
 #### ورود
 ```http
 POST /api/auth/login
@@ -308,6 +349,29 @@ Content-Type: application/json
 {
   "email": "user@example.com",
   "password": "securepassword123"
+}
+```
+
+**پاسخ موفقیت‌آمیز:**
+```json
+{
+  "success": true,
+  "message": "Login successful",
+  "data": {
+    "user": {
+      "id": "64f8a1b2c3d4e5f6g7h8i9j0",
+      "username": "user123",
+      "email": "user@example.com",
+      "role": "user",
+      "balances": {
+        "BTC": 0.0001,
+        "ETH": 0.005,
+        "USDT": 10.5,
+        "DOGE": 100
+      }
+    },
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  }
 }
 ```
 
@@ -324,6 +388,27 @@ Authorization: Bearer <token>
 GET /api/faucet
 ```
 
+**پاسخ:**
+```json
+{
+  "success": true,
+  "count": 4,
+  "data": [
+    {
+      "_id": "...",
+      "currency": "BTC",
+      "rewardAmount": 0.00001,
+      "minClaimInterval": 60,
+      "maxDailyClaims": 24,
+      "isActive": true,
+      "walletAddress": "bc1q...",
+      "totalDistributed": 0.5,
+      "totalClaims": 5000
+    }
+  ]
+}
+```
+
 #### دریافت از فاست
 ```http
 POST /api/faucet/claim
@@ -332,6 +417,20 @@ Content-Type: application/json
 
 {
   "currency": "BTC"
+}
+```
+
+**پاسخ موفقیت‌آمیز:**
+```json
+{
+  "success": true,
+  "message": "Successfully claimed 0.00001 BTC",
+  "data": {
+    "amount": 0.00001,
+    "currency": "BTC",
+    "newBalance": 0.00015,
+    "nextClaimIn": 60
+  }
 }
 ```
 
@@ -347,6 +446,18 @@ GET /api/faucet/next-claim/BTC
 Authorization: Bearer <token>
 ```
 
+**پاسخ:**
+```json
+{
+  "success": true,
+  "data": {
+    "canClaimNow": false,
+    "nextClaimTime": "2024-01-15T14:30:00.000Z",
+    "waitTimeSeconds": 1800
+  }
+}
+```
+
 ### برداشت
 
 #### درخواست برداشت
@@ -359,6 +470,22 @@ Content-Type: application/json
   "currency": "BTC",
   "address": "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
   "amount": 0.001
+}
+```
+
+**پاسخ موفقیت‌آمیز:**
+```json
+{
+  "success": true,
+  "message": "Withdrawal request submitted successfully",
+  "data": {
+    "withdrawalId": "64f8a1b2c3d4e5f6g7h8i9j0",
+    "currency": "BTC",
+    "amount": 0.001,
+    "address": "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
+    "status": "pending",
+    "newBalance": 0.0005
+  }
 }
 ```
 
@@ -379,6 +506,32 @@ Content-Type: application/json
   "txHash": "0x..."
 }
 ```
+
+**پاسخ:**
+```json
+{
+  "success": true,
+  "message": "Withdrawal approved successfully",
+  "data": {
+    "withdrawalId": "64f8a1b2c3d4e5f6g7h8i9j0",
+    "status": "completed",
+    "txHash": "0x1234567890abcdef..."
+  }
+}
+```
+
+### کدهای وضعیت HTTP
+
+| کد | معنی |
+|---|---|
+| 200 | موفقیت‌آمیز |
+| 201 | ایجاد شد |
+| 400 | درخواست نامعتبر |
+| 401 | غیرمجاز |
+| 403 | ممنوع |
+| 404 | یافت نشد |
+| 429 | تعداد درخواست زیاد |
+| 500 | خطای سرور |
 
 ---
 
